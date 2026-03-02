@@ -1,0 +1,19 @@
+# Module: [name]
+
+## Purpose
+<!-- What does this module/directory handle? -->
+
+## Key files
+<!-- Which files matter most? What do they do? -->
+
+## Patterns
+<!-- How do things work here? What patterns must new code follow? -->
+
+## Dependencies
+<!-- What does this module depend on? What depends on it? -->
+
+## Testing
+<!-- How are tests structured? Any special setup needed? -->
+
+## Watch out
+<!-- Gotchas, race conditions, edge cases the agent should know about -->

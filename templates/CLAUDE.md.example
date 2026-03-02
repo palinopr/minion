@@ -1,0 +1,32 @@
+# Project Context
+
+## What this project does
+<!-- One sentence. What does this codebase do? -->
+
+## Architecture
+<!-- How is the code organized? What are the main modules? -->
+
+## Stack
+- Language:
+- Framework:
+- Database:
+- Test framework:
+
+## Commands
+```bash
+# Install dependencies
+# Run tests
+# Run linter
+# Run dev server
+# Build for production
+```
+
+## Conventions
+<!-- Naming patterns, file organization, import style -->
+
+## Common mistakes agents make here
+<!-- What goes wrong? What patterns does the agent misunderstand? -->
+<!-- This section is the most valuable -- update it as you see failures -->
+
+## Domain-specific terms
+<!-- What jargon exists? What do abbreviations mean? -->

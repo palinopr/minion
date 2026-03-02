@@ -1,0 +1,52 @@
+# Minion System Configuration
+# Point this at any repo on your Mac Mini
+
+[general]
+# Max parallel agents (each uses ~2-3GB RAM on a 16GB machine)
+max_parallel = 3
+# Max feedback rounds before giving up
+max_rounds = 4
+# Budget per agent run in USD
+budget_usd = 2.00
+
+[repo]
+# Default repo path -- override with --repo flag
+path = ""
+# Branch to base work off of
+base_branch = "main"
+# Branch prefix for agent work
+branch_prefix = "agent/"
+
+[tools]
+# Lint command (auto-detected if empty)
+lint_cmd = ""
+# Test command (auto-detected if empty)
+test_cmd = ""
+# Format command (auto-detected if empty)
+format_cmd = ""
+
+[github]
+# Set to true if the repo uses GitHub and you want PRs created
+create_pr = true
+# PR reviewer (GitHub username, leave empty for none)
+reviewer = ""
+
+[safety]
+# Commands the agent is never allowed to run
+blocked_commands = [
+    "rm -rf /",
+    "rm -rf ~",
+    "DROP TABLE",
+    "DROP DATABASE",
+    "git push --force",
+    "git push -f",
+    "sudo rm",
+]
+# File patterns the agent cannot modify
+protected_files = [
+    ".env",
+    "*.pem",
+    "*.key",
+    "credentials.*",
+    "secrets.*",
+]

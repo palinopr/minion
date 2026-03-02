@@ -1,0 +1,28 @@
+[project]
+name = "minion"
+version = "0.1.0"
+description = "Unattended coding agents on your Mac Mini -- inspired by Stripe's minions"
+requires-python = ">=3.12"
+dependencies = [
+    "claude-agent-sdk>=0.1.40",
+    "flask>=3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[project.scripts]
+minion = "minion_cli:main"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

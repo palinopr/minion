@@ -1,0 +1,40 @@
+# Tool Shed -- register MCP servers here for your agents to discover.
+#
+# Each [[tools]] entry is an MCP server that agents can use.
+# Add your own tools below. Use ${ENV_VAR} syntax for secrets.
+#
+# Available community servers: https://github.com/modelcontextprotocol/servers
+
+# Example: GitHub (uncomment to enable)
+# [[tools]]
+# name = "github"
+# description = "GitHub API: create issues, read PRs, manage repos"
+# command = "npx"
+# args = ["@modelcontextprotocol/server-github"]
+# env = {GITHUB_TOKEN = "${GITHUB_TOKEN}"}
+# tags = ["vcs", "issues", "prs", "github"]
+
+# Example: PostgreSQL (uncomment to enable)
+# [[tools]]
+# name = "postgres"
+# description = "Query PostgreSQL databases"
+# command = "npx"
+# args = ["@modelcontextprotocol/server-postgres"]
+# env = {DATABASE_URL = "${DATABASE_URL}"}
+# tags = ["database", "sql", "postgres"]
+
+# Example: Filesystem (uncomment to enable)
+# [[tools]]
+# name = "filesystem"
+# description = "Read and write files outside the repo"
+# command = "npx"
+# args = ["@modelcontextprotocol/server-filesystem", "/path/to/allowed/dir"]
+# tags = ["files", "filesystem"]
+
+# Example: Playwright browser (uncomment to enable)
+# [[tools]]
+# name = "browser"
+# description = "Automate web browsers, take screenshots, fill forms"
+# command = "npx"
+# args = ["@playwright/mcp@latest"]
+# tags = ["browser", "web", "testing", "screenshots"]
