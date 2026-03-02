@@ -260,6 +260,13 @@ async def run_fix_blueprint(
                 result.pr_url = pr_url
                 if pr_url:
                     print(f"  PR: {pr_url}")
+
+                    if config.github.auto_merge:
+                        merged = wt.merge_pr(pr_url)
+                        print(format_step_log(
+                            7, StepType.DETERMINISTIC, "Merge PR",
+                            StepResult(success=merged),
+                        ))
         else:
             print("  No changes to commit")
 
@@ -267,8 +274,9 @@ async def run_fix_blueprint(
 
     finally:
         result.total_duration = time.time() - start
-        # Don't clean up worktree on success -- keep it for review
         if not result.success:
+            wt.cleanup()
+        elif config.github.auto_merge:
             wt.cleanup()
 
     return result

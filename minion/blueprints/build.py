@@ -149,11 +149,20 @@ async def run_build_blueprint(
             if pr_url:
                 print(f"  PR: {pr_url}")
 
+                if config.github.auto_merge:
+                    merged = wt.merge_pr(pr_url)
+                    print(format_step_log(
+                        8, StepType.DETERMINISTIC, "Merge PR",
+                        StepResult(success=merged),
+                    ))
+
         result.success = True
 
     finally:
         result.total_duration = time.time() - start
         if not result.success:
+            wt.cleanup()
+        elif config.github.auto_merge:
             wt.cleanup()
 
     return result

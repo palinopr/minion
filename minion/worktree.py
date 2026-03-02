@@ -45,8 +45,21 @@ class Worktree:
             text=True,
         )
 
+        self._link_dependencies()
         self._ensure_gitignore()
         return self.worktree_path
+
+    # Dependency directories to symlink from the original repo into worktrees.
+    # Avoids a full install while giving lint/test commands access to binaries.
+    _DEP_DIRS = ["node_modules"]
+
+    def _link_dependencies(self) -> None:
+        """Symlink dependency directories from the original repo if they exist."""
+        for dep_dir in self._DEP_DIRS:
+            source = self.repo_path / dep_dir
+            target = self.worktree_path / dep_dir
+            if source.is_dir() and not target.exists():
+                target.symlink_to(source)
 
     def _ensure_gitignore(self) -> None:
         """Make sure common junk patterns are gitignored in the worktree."""
@@ -164,6 +177,22 @@ class Worktree:
         except subprocess.CalledProcessError as e:
             print(f"  Failed to create PR: {e.stderr.strip()}")
             return None
+
+    def merge_pr(self, pr_url: str) -> bool:
+        """Merge the PR via gh CLI. Returns True on success."""
+        if not pr_url:
+            return False
+
+        try:
+            subprocess.run(
+                ["gh", "pr", "merge", pr_url, "--merge", "--delete-branch"],
+                cwd=str(self.repo_path),
+                check=True, capture_output=True, text=True,
+            )
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"  Merge failed: {e.stderr.strip()}")
+            return False
 
     def get_diff_summary(self) -> str:
         """Get a summary of changes in the worktree branch vs base."""

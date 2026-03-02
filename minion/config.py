@@ -30,6 +30,7 @@ class ToolsConfig:
 @dataclass
 class GitHubConfig:
     create_pr: bool = True
+    auto_merge: bool = True
     reviewer: str = ""
 
 

@@ -28,6 +28,8 @@ format_cmd = ""
 [github]
 # Set to true if the repo uses GitHub and you want PRs created
 create_pr = true
+# Auto-merge PRs after creation (builds on the PR as a receipt, then merges immediately)
+auto_merge = true
 # PR reviewer (GitHub username, leave empty for none)
 reviewer = ""
 
