@@ -66,8 +66,12 @@ async def run_agent_step(
     mcp_tools = load_tools()
     mcp_config = tools_to_mcp_config(mcp_tools) if mcp_tools else {}
 
-    # Send SDK internal noise to /dev/null
+    # Suppress all SDK subprocess noise
     devnull = open(os.devnull, "w")
+
+    def _swallow_stderr(_line: str) -> None:
+        """Discard all stderr from the CLI subprocess."""
+        pass
 
     opts = ClaudeAgentOptions(
         allowed_tools=["Read", "Edit", "Write", "Bash", "Glob", "Grep", "Task"],
@@ -76,6 +80,7 @@ async def run_agent_step(
         agents=agents,
         max_budget_usd=config.budget_usd,
         debug_stderr=devnull,
+        stderr=_swallow_stderr,
         mcp_servers=mcp_config,
         hooks={
             "PreToolUse": [
