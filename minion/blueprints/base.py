@@ -34,6 +34,7 @@ class BlueprintResult:
     branch: str = ""
     pr_url: str | None = None
     total_duration: float = 0.0
+    total_cost_usd: float = 0.0
 
 
 def run_shell(cmd: str, cwd: str, timeout: int = 120) -> StepResult:

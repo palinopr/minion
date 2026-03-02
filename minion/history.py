@@ -36,6 +36,7 @@ def save_run(
         "branch": result.branch,
         "pr_url": result.pr_url,
         "total_duration": result.total_duration,
+        "total_cost_usd": result.total_cost_usd,
         "session_id": result.session_id,
         "steps": [asdict(s) for s in result.steps],
     }
@@ -65,16 +66,17 @@ def format_run_table(runs: list[dict]) -> str:
         return "No runs found."
 
     lines = [
-        f"{'Time':<17} {'Cmd':<7} {'OK?':<5} {'Duration':<10} {'Description':<40} {'PR':<10}",
-        "-" * 95,
+        f"{'Time':<17} {'Cmd':<7} {'OK?':<5} {'Duration':<10} {'Cost':<8} {'Description':<40} {'PR':<10}",
+        "-" * 103,
     ]
     for r in runs:
         ok = "yes" if r["success"] else "FAIL"
         dur = f"{r['total_duration']:.0f}s"
+        cost = f"${r.get('total_cost_usd', 0):.2f}"
         desc = r["description"][:40]
         pr = r.get("pr_url", "") or ""
         pr = pr[-30:] if len(pr) > 30 else pr
         lines.append(
-            f"{r['timestamp']:<17} {r['command']:<7} {ok:<5} {dur:<10} {desc:<40} {pr:<10}"
+            f"{r['timestamp']:<17} {r['command']:<7} {ok:<5} {dur:<10} {cost:<8} {desc:<40} {pr:<10}"
         )
     return "\n".join(lines)

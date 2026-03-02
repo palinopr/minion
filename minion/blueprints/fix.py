@@ -18,7 +18,14 @@ from pathlib import Path
 
 import os
 
-from claude_agent_sdk import ClaudeAgentOptions, HookMatcher, ResultMessage, query
+from claude_agent_sdk import (
+    AssistantMessage,
+    ClaudeAgentOptions,
+    HookMatcher,
+    ResultMessage,
+    TextBlock,
+    query,
+)
 
 from minion.agents.definitions import get_agent_definitions
 from minion.blueprints.base import (
@@ -93,11 +100,16 @@ async def run_agent_step(
         opts.resume = session_id
 
     captured_session_id = session_id
+    text_chunks: list[str] = []
     final_output = ""
 
     try:
         async for message in query(prompt=prompt, options=opts):
-            if isinstance(message, ResultMessage):
+            if isinstance(message, AssistantMessage):
+                for block in message.content:
+                    if isinstance(block, TextBlock) and block.text:
+                        text_chunks.append(block.text)
+            elif isinstance(message, ResultMessage):
                 captured_session_id = message.session_id
                 final_output = message.result or ""
     except Exception as e:
@@ -107,9 +119,12 @@ async def run_agent_step(
             duration_seconds=time.time() - start,
         ), captured_session_id
 
+    # Use whichever source captured more content
+    collected = "\n\n".join(text_chunks)
+    output = collected if len(collected) > len(final_output) else final_output
     return StepResult(
         success=True,
-        output=final_output[:500] if final_output else "Completed",
+        output=output[:2000] if output else "Completed",
         duration_seconds=time.time() - start,
     ), captured_session_id
 

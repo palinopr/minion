@@ -12,7 +12,7 @@ import os
 import time
 from pathlib import Path
 
-from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
+from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions, ResultMessage, TextBlock, query
 
 from minion.blueprints.base import BlueprintResult, StepResult, StepType, format_step_log
 from minion.config import MinionConfig
@@ -52,23 +52,32 @@ async def run_review_blueprint(
         debug_stderr=devnull,
     )
 
+    text_chunks: list[str] = []
     final_output = ""
     try:
         async for message in query(prompt=prompt, options=opts):
-            if isinstance(message, ResultMessage):
+            if isinstance(message, AssistantMessage):
+                for block in message.content:
+                    if isinstance(block, TextBlock) and block.text:
+                        text_chunks.append(block.text)
+            elif isinstance(message, ResultMessage):
                 final_output = message.result or ""
+                result.total_cost_usd = message.total_cost_usd or 0.0
     except Exception as e:
         result.steps.append(StepResult(success=False, output=str(e)))
         result.total_duration = time.time() - start
         return result
 
-    step = StepResult(success=True, output=final_output or "", duration_seconds=time.time() - start)
+    # Use whichever source captured more content
+    collected = "\n\n".join(text_chunks)
+    review_text = collected if len(collected) > len(final_output) else final_output
+    step = StepResult(success=True, output=review_text, duration_seconds=time.time() - start)
     result.steps.append(step)
     result.success = True
     result.total_duration = time.time() - start
 
     print(format_step_log(1, StepType.AGENT, "Code review", step))
-    if final_output:
-        print(f"\n{final_output}")
+    if review_text:
+        print(f"\n{review_text}")
 
     return result
