@@ -15,3 +15,5 @@ build/
 .idea/
 *.swp
 *.swo
+# Added by minion
+node_modules/
