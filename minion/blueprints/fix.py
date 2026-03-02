@@ -38,6 +38,7 @@ from minion.blueprints.base import (
 from minion.config import MinionConfig, detect_stack
 from minion.hooks.safety import create_command_blocker, create_file_protector
 from minion.hooks.validation import create_post_write_linter
+from minion.prefetch import format_context_block, prefetch_context
 from minion.worktree import Worktree
 
 
@@ -163,9 +164,16 @@ async def run_fix_blueprint(
     working_dir = str(wt_path)
 
     try:
-        # Step 2 [AGENT]: Research and fix
-        print(format_step_log(2, StepType.AGENT, "Analyze and fix", StepResult(success=True, duration_seconds=0)))
+        # Step 2 [CODE]: Prefetch context
+        ctx = prefetch_context(task_description, repo_path, command="fix")
+        context_block = format_context_block(ctx)
+        prefetch_info = f"{len(ctx.relevant_files)} files, {len(ctx.rules)} rules"
+        print(format_step_log(2, StepType.DETERMINISTIC, f"Prefetch context ({prefetch_info})", StepResult(success=True)))
+
+        # Step 3 [AGENT]: Research and fix
+        print(format_step_log(3, StepType.AGENT, "Analyze and fix", StepResult(success=True, duration_seconds=0)))
         agent_prompt = (
+            f"{context_block}"
             f"Task: {task_description}\n\n"
             "Instructions:\n"
             "1. First, explore the codebase to understand the relevant code\n"
@@ -174,32 +182,32 @@ async def run_fix_blueprint(
             "4. Write or update tests to cover the fix\n"
             "5. Make sure your changes are complete and correct"
         )
-        step2, session_id = await run_agent_step(agent_prompt, working_dir, config)
-        result.steps.append(step2)
+        step3, session_id = await run_agent_step(agent_prompt, working_dir, config)
+        result.steps.append(step3)
         result.session_id = session_id
-        print(format_step_log(2, StepType.AGENT, "Analyze and fix", step2))
+        print(format_step_log(3, StepType.AGENT, "Analyze and fix", step3))
 
-        if not step2.success:
+        if not step3.success:
             return result
 
-        # Step 3 [CODE]: Lint and format
+        # Step 4 [CODE]: Lint and format
         if tools.lint_cmd:
             lint_result = run_shell(tools.lint_cmd, working_dir)
             result.steps.append(lint_result)
-            print(format_step_log(3, StepType.DETERMINISTIC, "Lint", lint_result))
+            print(format_step_log(4, StepType.DETERMINISTIC, "Lint", lint_result))
 
         if tools.format_cmd:
             fmt_result = run_shell(tools.format_cmd, working_dir)
             result.steps.append(fmt_result)
-            print(format_step_log(3, StepType.DETERMINISTIC, "Format", fmt_result))
+            print(format_step_log(4, StepType.DETERMINISTIC, "Format", fmt_result))
 
-        # Step 4 [CODE]: Run tests + feedback loop
+        # Step 5 [CODE]: Run tests + feedback loop
         if tools.test_cmd:
             for round_num in range(config.max_rounds):
                 test_result = run_shell(tools.test_cmd, working_dir, timeout=300)
                 result.steps.append(test_result)
                 print(format_step_log(
-                    4, StepType.DETERMINISTIC,
+                    5, StepType.DETERMINISTIC,
                     f"Tests (round {round_num + 1}/{config.max_rounds})",
                     test_result,
                 ))
@@ -220,7 +228,7 @@ async def run_fix_blueprint(
                     result.steps.append(fix_step)
                     result.session_id = session_id
                     print(format_step_log(
-                        4, StepType.AGENT,
+                        5, StepType.AGENT,
                         f"Fix tests (round {round_num + 1})",
                         fix_step,
                     ))
@@ -229,10 +237,10 @@ async def run_fix_blueprint(
                     if tools.lint_cmd:
                         run_shell(tools.lint_cmd, working_dir)
 
-        # Step 5 [CODE]: Commit, push, PR
+        # Step 6 [CODE]: Commit, push, PR
         committed = wt.commit_and_push(f"fix: {task_description[:72]}")
         if committed:
-            print(format_step_log(5, StepType.DETERMINISTIC, "Commit and push", StepResult(success=True)))
+            print(format_step_log(6, StepType.DETERMINISTIC, "Commit and push", StepResult(success=True)))
 
             if config.github.create_pr:
                 pr_url = wt.create_pr(

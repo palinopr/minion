@@ -36,7 +36,7 @@ class GitHubConfig:
 @dataclass
 class MinionConfig:
     max_parallel: int = 3
-    max_rounds: int = 4
+    max_rounds: int = 2
     budget_usd: float = 2.00
     repo: RepoConfig = field(default_factory=RepoConfig)
     tools: ToolsConfig = field(default_factory=ToolsConfig)

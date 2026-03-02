@@ -25,6 +25,7 @@ from minion.blueprints.base import (
 )
 from minion.blueprints.fix import run_agent_step
 from minion.config import MinionConfig, detect_stack
+from minion.prefetch import format_context_block, prefetch_context
 from minion.worktree import Worktree
 
 
@@ -59,8 +60,15 @@ async def run_build_blueprint(
     working_dir = str(wt_path)
 
     try:
-        # Step 2 [AGENT]: Research architecture
+        # Step 2 [CODE]: Prefetch context
+        ctx = prefetch_context(feature_spec, repo_path, command="build")
+        context_block = format_context_block(ctx)
+        prefetch_info = f"{len(ctx.relevant_files)} files, {len(ctx.rules)} rules"
+        print(format_step_log(2, StepType.DETERMINISTIC, f"Prefetch context ({prefetch_info})", StepResult(success=True)))
+
+        # Step 3 [AGENT]: Research architecture
         research_prompt = (
+            f"{context_block}"
             "Before implementing anything, explore this codebase:\n"
             "1. Understand the directory structure and architecture\n"
             "2. Find similar features to understand the pattern\n"
@@ -72,9 +80,9 @@ async def run_build_blueprint(
         step, session_id = await run_agent_step(research_prompt, working_dir, config)
         result.steps.append(step)
         result.session_id = session_id
-        print(format_step_log(2, StepType.AGENT, "Research", step))
+        print(format_step_log(3, StepType.AGENT, "Research", step))
 
-        # Step 3 [AGENT]: Implement the feature
+        # Step 4 [AGENT]: Implement the feature
         impl_prompt = (
             "Now implement the feature based on your research.\n"
             "- Follow the existing architecture and patterns you found\n"
@@ -85,25 +93,25 @@ async def run_build_blueprint(
         )
         step, session_id = await run_agent_step(impl_prompt, working_dir, config, session_id)
         result.steps.append(step)
-        print(format_step_log(3, StepType.AGENT, "Implement", step))
+        print(format_step_log(4, StepType.AGENT, "Implement", step))
 
-        # Step 4 [CODE]: Lint and format
+        # Step 5 [CODE]: Lint and format
         if tools.lint_cmd:
             lint_result = run_shell(tools.lint_cmd, working_dir)
             result.steps.append(lint_result)
-            print(format_step_log(4, StepType.DETERMINISTIC, "Lint", lint_result))
+            print(format_step_log(5, StepType.DETERMINISTIC, "Lint", lint_result))
 
         if tools.format_cmd:
             fmt_result = run_shell(tools.format_cmd, working_dir)
             result.steps.append(fmt_result)
-            print(format_step_log(4, StepType.DETERMINISTIC, "Format", fmt_result))
+            print(format_step_log(5, StepType.DETERMINISTIC, "Format", fmt_result))
 
-        # Step 5 [CODE]: Run tests + feedback loop
+        # Step 6 [CODE]: Run tests + feedback loop
         if tools.test_cmd:
             for round_num in range(config.max_rounds):
                 test_result = run_shell(tools.test_cmd, working_dir, timeout=300)
                 result.steps.append(test_result)
-                print(format_step_log(5, StepType.DETERMINISTIC, f"Tests (round {round_num + 1})", test_result))
+                print(format_step_log(6, StepType.DETERMINISTIC, f"Tests (round {round_num + 1})", test_result))
 
                 if test_result.success:
                     break
@@ -117,12 +125,12 @@ async def run_build_blueprint(
                         fix_prompt, working_dir, config, session_id,
                     )
                     result.steps.append(fix_step)
-                    print(format_step_log(5, StepType.AGENT, f"Fix (round {round_num + 1})", fix_step))
+                    print(format_step_log(6, StepType.AGENT, f"Fix (round {round_num + 1})", fix_step))
 
                     if tools.lint_cmd:
                         run_shell(tools.lint_cmd, working_dir)
 
-        # Step 6 [CODE]: Commit, push, PR
+        # Step 7 [CODE]: Commit, push, PR
         committed = wt.commit_and_push(f"feat: {feature_spec[:72]}")
         if committed and config.github.create_pr:
             pr_url = wt.create_pr(

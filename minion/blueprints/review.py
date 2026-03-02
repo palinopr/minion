@@ -16,6 +16,7 @@ from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions, ResultMessage
 
 from minion.blueprints.base import BlueprintResult, StepResult, StepType, format_step_log
 from minion.config import MinionConfig
+from minion.prefetch import format_context_block, prefetch_context
 
 
 async def run_review_blueprint(
@@ -27,7 +28,14 @@ async def run_review_blueprint(
     result = BlueprintResult(success=False)
     start = time.time()
 
+    # Step 1 [CODE]: Prefetch context
+    ctx = prefetch_context(target, repo_path, command="review")
+    context_block = format_context_block(ctx)
+    prefetch_info = f"{len(ctx.relevant_files)} files, {len(ctx.rules)} rules"
+    print(format_step_log(1, StepType.DETERMINISTIC, f"Prefetch context ({prefetch_info})", StepResult(success=True)))
+
     prompt = (
+        f"{context_block}"
         f"Review target: {target}\n\n"
         "Perform a thorough code review. Check for:\n"
         "1. Bugs and logic errors\n"
@@ -76,7 +84,7 @@ async def run_review_blueprint(
     result.success = True
     result.total_duration = time.time() - start
 
-    print(format_step_log(1, StepType.AGENT, "Code review", step))
+    print(format_step_log(2, StepType.AGENT, "Code review", step))
     if review_text:
         print(f"\n{review_text}")
 

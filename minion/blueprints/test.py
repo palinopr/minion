@@ -24,6 +24,7 @@ from minion.blueprints.base import (
 )
 from minion.blueprints.fix import run_agent_step
 from minion.config import MinionConfig, detect_stack
+from minion.prefetch import format_context_block, prefetch_context
 from minion.worktree import Worktree
 
 
@@ -55,8 +56,15 @@ async def run_test_blueprint(
     working_dir = str(wt_path)
 
     try:
-        # Step 1 [AGENT]: Analyze and write tests
+        # Step 2 [CODE]: Prefetch context
+        ctx = prefetch_context(target, repo_path, command="test")
+        context_block = format_context_block(ctx)
+        prefetch_info = f"{len(ctx.relevant_files)} files, {len(ctx.rules)} rules"
+        print(format_step_log(2, StepType.DETERMINISTIC, f"Prefetch context ({prefetch_info})", StepResult(success=True)))
+
+        # Step 3 [AGENT]: Analyze and write tests
         prompt = (
+            f"{context_block}"
             f"Target: {target}\n\n"
             "Instructions:\n"
             "1. Explore the target code to understand its behavior\n"
@@ -72,20 +80,20 @@ async def run_test_blueprint(
         step, session_id = await run_agent_step(prompt, working_dir, config)
         result.steps.append(step)
         result.session_id = session_id
-        print(format_step_log(2, StepType.AGENT, "Write tests", step))
+        print(format_step_log(3, StepType.AGENT, "Write tests", step))
 
-        # Step 2 [CODE]: Lint
+        # Step 4 [CODE]: Lint
         if tools.lint_cmd:
             lint_result = run_shell(tools.lint_cmd, working_dir)
             result.steps.append(lint_result)
-            print(format_step_log(3, StepType.DETERMINISTIC, "Lint", lint_result))
+            print(format_step_log(4, StepType.DETERMINISTIC, "Lint", lint_result))
 
-        # Step 3 [CODE]: Run tests + feedback loop
+        # Step 5 [CODE]: Run tests + feedback loop
         if tools.test_cmd:
             for round_num in range(config.max_rounds):
                 test_result = run_shell(tools.test_cmd, working_dir, timeout=300)
                 result.steps.append(test_result)
-                print(format_step_log(4, StepType.DETERMINISTIC, f"Tests (round {round_num + 1})", test_result))
+                print(format_step_log(5, StepType.DETERMINISTIC, f"Tests (round {round_num + 1})", test_result))
 
                 if test_result.success:
                     break
@@ -99,9 +107,9 @@ async def run_test_blueprint(
                         fix_prompt, working_dir, config, session_id,
                     )
                     result.steps.append(fix_step)
-                    print(format_step_log(4, StepType.AGENT, f"Fix tests (round {round_num + 1})", fix_step))
+                    print(format_step_log(5, StepType.AGENT, f"Fix tests (round {round_num + 1})", fix_step))
 
-        # Step 4 [CODE]: Commit, push, PR
+        # Step 6 [CODE]: Commit, push, PR
         committed = wt.commit_and_push(f"test: add tests for {target[:60]}")
         if committed and config.github.create_pr:
             pr_url = wt.create_pr(
