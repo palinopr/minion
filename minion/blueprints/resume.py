@@ -79,9 +79,10 @@ async def run_resume_blueprint(
         f"and complete the task."
     )
 
-    step, new_session = await run_agent_step(prompt, working_dir, config, session_id)
+    step, new_session, cost = await run_agent_step(prompt, working_dir, config, session_id)
     result.steps.append(step)
     result.session_id = new_session
+    result.total_cost_usd += cost
     result.branch = branch
     print(format_step_log(1, StepType.AGENT, "Resume", step))
 

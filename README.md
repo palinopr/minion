@@ -44,18 +44,45 @@ python minion.py batch --repo ~/myapp tasks.txt
      |  minion fix --repo ...  |                              |
      |------------------------>|                              |
      |                         |  1. Create git worktree      |
-     |                         |  2. Detect stack (py/node/go)|
-     |                         |  3. Run lint (deterministic)  |
-     |                         |  4. Agent: analyze bug ------>|
-     |                         |  5. Agent: write fix -------->|
-     |                         |  6. Run tests (deterministic) |
-     |                         |  7. If tests fail, loop to 4  |
-     |                         |  8. Commit + push + open PR   |
-     |  PR url                 |                              |
+     |                         |  2. Prefetch context          |
+     |                         |     - grep for relevant files |
+     |                         |     - load CLAUDE.md rules    |
+     |                         |     - map directory structure  |
+     |                         |  3. Agent: analyze + fix ---->|
+     |                         |  4. Run lint (deterministic)  |
+     |                         |  5. Run tests (deterministic) |
+     |                         |     - fail? Agent fix, retry  |
+     |                         |     - max 2 rounds            |
+     |                         |  6. Commit + push + open PR   |
+     |  PR url + cost          |                              |
      |<------------------------|                              |
 ```
 
-Each command follows a **blueprint** -- a predefined sequence of steps. Some steps are deterministic (run a shell command, check output) and some are agentic (let Claude reason about code). The agent gets up to `max_rounds` attempts (default: 4) to make tests pass before giving up.
+Each command follows a **blueprint** -- a predefined sequence of steps. Some steps are deterministic (run a shell command, check output) and some are agentic (let Claude reason about code). The agent gets up to `max_rounds` attempts (default: 2) to make tests pass before giving up. Context is prefetched deterministically before the agent starts -- no LLM calls wasted on orientation.
+
+## Context prefetching
+
+Before the agent starts, minion runs a deterministic prefetch step (~2-5 seconds, no LLM):
+
+1. **Extract paths** from the task description (`agent/src/events/message-handler.ts`)
+2. **Extract identifiers** (function names, class names) and grep the repo for matches
+3. **Load CLAUDE.md rules** from affected directories (walk up to repo root)
+4. **Pull repo docs** (README, ARCHITECTURE.md) for build/review commands
+5. **Map directory structure** for orientation
+
+The agent wakes up with all this context already in its prompt. This is inspired by Stripe's approach: deterministic prefetching before the agent runs means fewer wasted tokens on exploration.
+
+To add project-specific rules, create `CLAUDE.md` files in your repo directories:
+
+```
+myapp/
+  CLAUDE.md              # root rules (always loaded)
+  src/
+    payments/
+      CLAUDE.md          # loaded when task touches payments/
+    auth/
+      CLAUDE.md          # loaded when task touches auth/
+```
 
 ## Commands
 
@@ -138,6 +165,7 @@ minion/
   quiet.py                       # Stderr noise filter
   history.py                     # Run history (JSON logs)
   parallel.py                    # Concurrent task runner
+  prefetch.py                    # Context prefetching (Stripe Layer 2)
   toolshed.py                    # MCP tool loader
   hooks/
     safety.py                    # Block dangerous commands, protect files

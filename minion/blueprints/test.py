@@ -77,9 +77,10 @@ async def run_test_blueprint(
             "5. Use descriptive test names\n"
             "6. One assertion per test where practical"
         )
-        step, session_id = await run_agent_step(prompt, working_dir, config)
+        step, session_id, cost = await run_agent_step(prompt, working_dir, config)
         result.steps.append(step)
         result.session_id = session_id
+        result.total_cost_usd += cost
         print(format_step_log(3, StepType.AGENT, "Write tests", step))
 
         # Step 4 [CODE]: Lint
@@ -103,10 +104,11 @@ async def run_test_blueprint(
                         f"Tests failed:\n\n{test_result.output[:2000]}\n\n"
                         "Fix the failing tests. Do not delete tests to make them pass."
                     )
-                    fix_step, session_id = await run_agent_step(
+                    fix_step, session_id, fix_cost = await run_agent_step(
                         fix_prompt, working_dir, config, session_id,
                     )
                     result.steps.append(fix_step)
+                    result.total_cost_usd += fix_cost
                     print(format_step_log(5, StepType.AGENT, f"Fix tests (round {round_num + 1})", fix_step))
 
         # Step 6 [CODE]: Commit, push, PR

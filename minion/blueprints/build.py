@@ -77,9 +77,10 @@ async def run_build_blueprint(
             "5. Summarize your findings before proceeding\n\n"
             f"The feature to implement:\n{feature_spec}"
         )
-        step, session_id = await run_agent_step(research_prompt, working_dir, config)
+        step, session_id, cost = await run_agent_step(research_prompt, working_dir, config)
         result.steps.append(step)
         result.session_id = session_id
+        result.total_cost_usd += cost
         print(format_step_log(3, StepType.AGENT, "Research", step))
 
         # Step 4 [AGENT]: Implement the feature
@@ -91,8 +92,9 @@ async def run_build_blueprint(
             "- Write tests alongside the implementation\n"
             "- Make sure imports and references are correct"
         )
-        step, session_id = await run_agent_step(impl_prompt, working_dir, config, session_id)
+        step, session_id, cost = await run_agent_step(impl_prompt, working_dir, config, session_id)
         result.steps.append(step)
+        result.total_cost_usd += cost
         print(format_step_log(4, StepType.AGENT, "Implement", step))
 
         # Step 5 [CODE]: Lint and format
@@ -121,10 +123,11 @@ async def run_build_blueprint(
                         f"Tests failed:\n\n{test_result.output[:2000]}\n\n"
                         "Fix the failures. Do not delete or skip tests."
                     )
-                    fix_step, session_id = await run_agent_step(
+                    fix_step, session_id, fix_cost = await run_agent_step(
                         fix_prompt, working_dir, config, session_id,
                     )
                     result.steps.append(fix_step)
+                    result.total_cost_usd += fix_cost
                     print(format_step_log(6, StepType.AGENT, f"Fix (round {round_num + 1})", fix_step))
 
                     if tools.lint_cmd:

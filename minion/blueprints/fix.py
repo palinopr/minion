@@ -47,8 +47,8 @@ async def run_agent_step(
     working_dir: str,
     config: MinionConfig,
     session_id: str | None = None,
-) -> tuple[StepResult, str | None]:
-    """Run an agent step. Returns (result, session_id)."""
+) -> tuple[StepResult, str | None, float]:
+    """Run an agent step. Returns (result, session_id, cost_usd)."""
     start = time.time()
     tools_config = detect_stack(Path(working_dir))
     # Merge auto-detected with config overrides
@@ -103,6 +103,7 @@ async def run_agent_step(
     captured_session_id = session_id
     text_chunks: list[str] = []
     final_output = ""
+    cost_usd = 0.0
 
     try:
         async for message in query(prompt=prompt, options=opts):
@@ -113,12 +114,13 @@ async def run_agent_step(
             elif isinstance(message, ResultMessage):
                 captured_session_id = message.session_id
                 final_output = message.result or ""
+                cost_usd = message.total_cost_usd or 0.0
     except Exception as e:
         return StepResult(
             success=False,
             output=f"Agent error: {e}",
             duration_seconds=time.time() - start,
-        ), captured_session_id
+        ), captured_session_id, cost_usd
 
     # Use whichever source captured more content
     collected = "\n\n".join(text_chunks)
@@ -127,7 +129,7 @@ async def run_agent_step(
         success=True,
         output=output[:2000] if output else "Completed",
         duration_seconds=time.time() - start,
-    ), captured_session_id
+    ), captured_session_id, cost_usd
 
 
 async def run_fix_blueprint(
@@ -182,9 +184,10 @@ async def run_fix_blueprint(
             "4. Write or update tests to cover the fix\n"
             "5. Make sure your changes are complete and correct"
         )
-        step3, session_id = await run_agent_step(agent_prompt, working_dir, config)
+        step3, session_id, cost = await run_agent_step(agent_prompt, working_dir, config)
         result.steps.append(step3)
         result.session_id = session_id
+        result.total_cost_usd += cost
         print(format_step_log(3, StepType.AGENT, "Analyze and fix", step3))
 
         if not step3.success:
@@ -222,11 +225,12 @@ async def run_fix_blueprint(
                         f"{test_result.output[:2000]}\n\n"
                         "Fix the failing tests. Do not skip or delete tests."
                     )
-                    fix_step, session_id = await run_agent_step(
+                    fix_step, session_id, fix_cost = await run_agent_step(
                         fix_prompt, working_dir, config, session_id,
                     )
                     result.steps.append(fix_step)
                     result.session_id = session_id
+                    result.total_cost_usd += fix_cost
                     print(format_step_log(
                         5, StepType.AGENT,
                         f"Fix tests (round {round_num + 1})",
